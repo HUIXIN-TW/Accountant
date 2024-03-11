@@ -49,6 +49,35 @@ node seed.js
 
 This script will create a set of predefined accounts, transactions, and possibly sub-accounts, as outlined in the seeder file, enabling you to quickly start testing and developing on a pre-populated database.
 
+## SQLite Database
+
+Open a terminal and navigate to the project directory. To access the SQLite database, run the following command:
+
+```bash
+sqlite3 accountant.db
+```
+
+This command opens the SQLite shell, allowing you to interact with the database using SQL commands. For example, to view all transactions, execute the following command:
+
+```sql
+SELECT * FROM transactions;
+```
+
+To exit the SQLite shell, type `.quit` and press Enter.
+
+## Visualizing the Database
+
+### Using `chart.js`
+
+To visualise the database, you can view the `index.html` file in your browser. This file contains a simple web page that uses the `https://cdn.jsdelivr.net/npm/chart.js` library to display the database in a graphical format.
+
+- Counts of accounts are displayed in a bar chart.
+  ![](public/images/bar.png)
+
+- The total amount of transactions is displayed in a pie chart.
+  ![](public/images/pie1.png)
+  ![](public/images/pie2.png)
+
 ## Development Notes
 
 - Enhance the application by adding more sophisticated querying capabilities, such as filtering transactions by date, account, or type.

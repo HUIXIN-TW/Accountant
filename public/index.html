@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Financial Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        padding: 20px;
+        background-color: #f4f4f4;
+      }
+      .dashboard-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        gap: 20px;
+      }
+      .bar-chart-container {
+        flex: 1;
+        min-width: 300px;
+        background-color: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 30px;
+      }
+      #account-amount-by-category-pie-chart {
+        flex: 1;
+        min-width: 300px;
+        background-color: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 30px;
+      }
+      canvas {
+        width: 100% !important;
+        height: auto !important;
+      }
+      @media (max-width: 1450px) {
+        .dashboard-container {
+          flex-direction: column;
+          align-items: center;
+        }
+      }
+      @media (max-width: 768px) {
+        #account-amount-by-category-pie-chart {
+          flex-direction: column;
+          align-items: center;
+        }
+      }
+      @media (min-width: 768px) {
+        #account-amount-by-category-pie-chart {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          align-items: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <div class="bar-chart-container">
+        <canvas id="account-category-bar-chart"></canvas>
+      </div>
+      <div class="bar-chart-container">
+        <canvas id="account-amount-bar-chart"></canvas>
+      </div>
+    </div>
+    <div class="dashboard-container">
+      <div id="account-amount-by-category-pie-chart"></div>
+    </div>
+
+    <script>
+      fetch("/api/accounts")
+        .then((response) => response.json())
+        .then((result) => {
+          const data = result.data;
+          const categoriesCount = data.reduce((acc, item) => {
+            acc[item.type] = (acc[item.type] || 0) + 1;
+            return acc;
+          }, {});
+
+          const ctx = document
+            .getElementById("account-category-bar-chart")
+            .getContext("2d");
+          const categories = Object.keys(categoriesCount);
+          const counts = Object.values(categoriesCount);
+
+          // Generate a gradient for the bar colors
+          const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+          gradient.addColorStop(0, "rgba(255, 159, 64, 0.2)");
+          gradient.addColorStop(1, "rgba(255, 99, 132, 0.2)");
+
+          new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: categories,
+              datasets: [
+                {
+                  label: "# of Accounts",
+                  data: counts,
+                  backgroundColor: gradient,
+                  borderColor: "rgba(255, 159, 64, 1)",
+                  borderWidth: 1,
+                  hoverBackgroundColor: "rgba(255, 99, 132, 0.4)",
+                  hoverBorderColor: "rgba(255, 99, 132, 1)",
+                },
+              ],
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true,
+                },
+              },
+              animation: {
+                duration: 1500,
+                easing: "easeOutBounce",
+              },
+              plugins: {
+                legend: {
+                  position: "top",
+                  labels: {
+                    font: {
+                      size: 14,
+                    },
+                  },
+                },
+                tooltip: {
+                  backgroundColor: "rgba(0, 0, 0, 0.7)",
+                  titleFont: {
+                    size: 16,
+                    weight: "bold",
+                  },
+                  bodyFont: {
+                    size: 14,
+                  },
+                  bodySpacing: 6,
+                  mode: "index",
+                  intersect: false,
+                },
+              },
+            },
+          });
+        })
+        .catch((error) => console.log("Error:", error));
+
+      fetch("/api/accounts/amounts")
+        .then((response) => response.json())
+        .then((data) => {
+          const accountData = data.data; // Assuming data is wrapped in a data property
+
+          // Sort accountData by total_amount, ascending or descending
+          accountData.sort((a, b) => b.total_amount - a.total_amount); // For descending
+
+          const labels = accountData.map(
+            (item) => `${item.account_name} (${item.account_type})`,
+          );
+          const amounts = accountData.map((item) => item.total_amount);
+
+          // Generate a unique color for each account
+          const backgroundColors = accountData.map(
+            (_, index) =>
+              `hsl(${(index * 360) / accountData.length}, 70%, 70%)`,
+          );
+
+          const ctx = document
+            .getElementById("account-amount-bar-chart")
+            .getContext("2d");
+          new Chart(ctx, {
+            type: "bar", // Consider using 'bar' for a clearer view on amounts
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: "Total Amount by Account",
+                  data: amounts,
+                  backgroundColor: backgroundColors,
+                  hoverOffset: 4,
+                },
+              ],
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true,
+                },
+              },
+              title: {
+                display: true,
+                text: "Total Amounts by Account",
+              },
+              legend: {
+                display: false, // Set to false if the label is not necessary
+              },
+            },
+          });
+        })
+        .catch((error) => console.error("Error:", error));
+
+      fetch("/api/accounts/amounts")
+        .then((response) => response.json())
+        .then((data) => {
+          const accountData = data.data;
+
+          // Group data by account type
+          const dataByType = accountData.reduce((acc, item) => {
+            if (!acc[item.account_type]) {
+              acc[item.account_type] = [];
+            }
+            acc[item.account_type].push(item);
+            return acc;
+          }, {});
+
+          Object.entries(dataByType).forEach(([type, accounts]) => {
+            // Sort accounts by total_amount within each type, descending
+            accounts.sort((a, b) => b.total_amount - a.total_amount);
+            const container = document.createElement("div");
+            container.className = "pie-chart-container";
+            const canvas = document.createElement("canvas");
+            container.appendChild(canvas);
+            document
+              .getElementById("account-amount-by-category-pie-chart")
+              .appendChild(container);
+
+            const ctx = canvas.getContext("2d");
+
+            // Aggregate smaller amounts into "Other"
+            const thresholdPercentage = 2; // Define your threshold here, e.g., 5%
+            let totalAmount = accounts.reduce(
+              (sum, account) => sum + account.total_amount,
+              0,
+            );
+            let aggregatedAmounts = [];
+            let labels = [];
+            let otherAmount = 0;
+
+            accounts.forEach((account) => {
+              if (
+                (account.total_amount / totalAmount) * 100 <
+                thresholdPercentage
+              ) {
+                otherAmount += account.total_amount;
+              } else {
+                labels.push(account.account_name);
+                aggregatedAmounts.push(account.total_amount);
+              }
+            });
+
+            if (otherAmount > 0) {
+              labels.push("Other");
+              aggregatedAmounts.push(otherAmount);
+            }
+
+            // Generate background colors
+            const backgroundColors = aggregatedAmounts.map(
+              (_, index) =>
+                `hsl(${(index * 360) / aggregatedAmounts.length}, 70%, 70%)`,
+            );
+
+            new Chart(ctx, {
+              type: "pie",
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    data: aggregatedAmounts,
+                    backgroundColor: backgroundColors,
+                  },
+                ],
+              },
+              options: {
+                title: {
+                  display: true,
+                  text: `${type} Accounts`,
+                },
+                tooltips: {
+                  enabled: true,
+                  mode: "index",
+                  intersect: false,
+                },
+                legend: {
+                  display: false,
+                  position: "top",
+                },
+              },
+            });
+          });
+        })
+        .catch((error) => console.error("Error:", error));
+    </script>
+  </body>
+</html>

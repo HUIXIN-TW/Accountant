@@ -16,6 +16,9 @@ const app = express();
 // set port
 const port = process.env.PORT || 3000;
 
+// Serve static files from 'public' folder
+app.use(express.static("public"));
+
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -168,6 +171,103 @@ app.delete("/api/transactions/:id", (req, res) => {
         return;
       }
       res.json({ message: "Transaction deleted successfully" });
+    });
+  });
+});
+
+/*
+TransactionLines CRUD Operations
+*/
+
+// Create Transaction Lines
+app.post("/api/transactionlines", (req, res) => {
+  const { transaction_id, account_id, type, amount } = req.body;
+  const sql = `INSERT INTO TransactionLines (transaction_id, account_id, type, amount) VALUES (?, ?, ?, ?)`;
+  db.run(sql, [transaction_id, account_id, type, amount], function (err) {
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    res.status(201).json({
+      message: "Transaction line added successfully",
+      id: this.lastID,
+    });
+  });
+});
+
+// Read Transaction Lines
+app.get("/api/transactionlines", (req, res) => {
+  db.all(`SELECT * FROM TransactionLines`, [], (err, rows) => {
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    res.json({ data: rows });
+  });
+});
+
+// Update Transaction Lines
+app.put("/api/transactionlines/:id", (req, res) => {
+  const { id } = req.params;
+  const { transaction_id, account_id, type, amount } = req.body;
+  const sql = `UPDATE TransactionLines SET transaction_id = ?, account_id = ?, type = ?, amount = ? WHERE line_id = ?`;
+  db.run(sql, [transaction_id, account_id, type, amount, id], function (err) {
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    res.json({ message: "Transaction line updated successfully" });
+  });
+});
+
+// Delete Transaction Lines
+app.delete("/api/transactionlines/:id", (req, res) => {
+  const { id } = req.params;
+  const sql = `DELETE FROM TransactionLines WHERE line_id = ?`;
+  db.run(sql, id, function (err) {
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    res.json({ message: "Transaction line deleted successfully" });
+  });
+});
+
+// Aggregates the total amount by account type
+app.get("/api/accounts/amounts", (req, res) => {
+  // Define the SQL query using a Common Table Expression (CTE)
+  // to aggregate amounts by account name and type.
+  const sql = `
+    WITH cte AS (
+      SELECT 
+        transactionLines.*, 
+        transactions.date, 
+        transactions.description, 
+        Accounts.name AS account_name, 
+        Accounts.type AS account_type
+      FROM transactionLines
+      LEFT JOIN transactions ON transactions.transaction_id = transactionLines.transaction_id
+      LEFT JOIN Accounts ON Accounts.account_id = transactionLines.account_id
+    )
+    SELECT 
+      account_type, 
+      account_name, 
+      SUM(amount) AS total_amount
+    FROM cte 
+    GROUP BY account_name, account_type;
+  `;
+
+  // Execute the query
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      // Send an error response if the query fails
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    // Send the aggregated data as the response
+    res.json({
+      message: "Success",
+      data: rows,
     });
   });
 });
